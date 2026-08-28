@@ -24,6 +24,9 @@ output/
 *.csv
 _local_data/
 
+# Local utility scripts — one-time backfill, migrate, check, fix scripts
+_local_scripts/
+
 # Pipeline state files
 _reparse_done_*.json
 
