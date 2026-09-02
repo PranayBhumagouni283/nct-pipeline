@@ -449,8 +449,7 @@ def init_dept(dept_arg: str):
     _here     = Path(__file__).parent
     dept_path = Path(dept_arg) if Path(dept_arg).is_absolute() else _here / dept_arg
 
-    if not dept_path.exists():
-        raise FileNotFoundError(f"Department folder not found: {dept_path}")
+    dept_path.mkdir(parents=True, exist_ok=True)
 
     DEPT_DIR        = dept_path
     DEPT_NAME       = dept_path.name
@@ -1862,9 +1861,9 @@ def main():
         description="NCT Combined Tracking Pipeline",
         epilog=(
             "Examples:\n"
-            "  python combined_pipeline.py ADC                          # unified (default)\n"
+            "  python combined_pipeline.py ADC                                    # unified (default)\n"
             "  python combined_pipeline.py ADC --indication 'Ovarian Cancer'  # single pipeline\n"
-            "  python combined_pipeline.py ASMB                        # unified ASMB"
+            "  python combined_pipeline.py 'Liver Diseases'                   # unified Liver Diseases"
         ),
     )
     parser.add_argument("dept", help='Department name (e.g. "ADC") or full path')
