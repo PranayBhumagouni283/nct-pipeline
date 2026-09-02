@@ -1,11 +1,11 @@
 """
 run_all.py
 ----------
-Run the NCT pipeline for every department in the Supabase `departments` table.
+Run the NCT pipeline for every department in the `departments` table.
 
 Usage:
     python run_all.py              # run all departments
-    python run_all.py ADC ASMB    # run specific departments only
+    python run_all.py ADC          # run specific departments only
 """
 
 import sys
