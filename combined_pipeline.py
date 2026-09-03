@@ -1682,6 +1682,13 @@ def _run_unified(run_start: datetime) -> None:
 
     # Field changes and version cache are shared across all pipelines
     db.insert_field_changes(DEPT_NAME, to_date, newly_compared, indication="")
+    # Also log field changes per indication so indication-specific views have data
+    if newly_compared:
+        for ind in all_indications:
+            ind_tracking = pipelines[ind]["tracking_set"]
+            ind_rows = [r for r in newly_compared if r["nct_id"] in ind_tracking]
+            if ind_rows:
+                db.insert_field_changes(DEPT_NAME, to_date, ind_rows, indication=ind)
     db.upsert_version_cache(DEPT_NAME, all_diff_rows)
     if redirects:
         db.insert_canonical_changes(DEPT_NAME, to_date, redirects)
