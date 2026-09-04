@@ -21,13 +21,15 @@ To force reload after updating alias tables:
     norm.reload()
 """
 
+import logging
 import re
 import db
 
 # ── Internal state ─────────────────────────────────────────────────
 _org_aliases:       dict[str, str] = {}
 _condition_aliases: dict[str, str] = {}   # keyword.lower() → canonical indication
-_loaded = False
+_loaded      = False
+_load_failed = False
 
 # Trailing legal entity suffixes to strip automatically.
 # Applied up to 3 times so "Co., Ltd." resolves cleanly.
@@ -42,7 +44,7 @@ _LEGAL_RE = re.compile(
 
 
 def _load() -> None:
-    global _org_aliases, _condition_aliases, _loaded
+    global _org_aliases, _condition_aliases, _loaded, _load_failed
     if _loaded:
         return
     try:
@@ -70,7 +72,8 @@ def _load() -> None:
         )
     except Exception as e:
         print(f"  [Norm] Warning: alias tables not available ({e}) — auto-clean only")
-        _loaded = True  # prevent repeated failures
+        _loaded      = True   # prevent repeated load attempts
+        _load_failed = True   # flag so callers can detect degraded mode
 
 
 def reload() -> None:
@@ -99,6 +102,8 @@ def normalize_org(name: str) -> str:
     Priority: org_aliases table → auto-clean legal suffix → raw.
     """
     _load()
+    if _load_failed:
+        logging.warning("norm: alias table failed to load — using degraded normalization")
     name = (name or '').strip()
     if not name:
         return name
