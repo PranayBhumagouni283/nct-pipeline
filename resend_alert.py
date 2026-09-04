@@ -22,20 +22,18 @@ def resend(dept: str):
     cp.init_dept(dept)
 
     # Load last run from run_history
-    resp = (
-        db._db().table("run_history")
-        .select("*")
-        .eq("dept", dept)
-        .order("run_date", desc=True)
-        .limit(1)
-        .execute()
-    )
+    with db._cur() as cur:
+        cur.execute(
+            'SELECT * FROM "CT".run_history WHERE dept = %s ORDER BY run_date DESC LIMIT 1',
+            (dept,)
+        )
+        rows = cur.fetchall()
 
-    if not resp.data:
+    if not rows:
         print(f"  [{dept}] No run history found — cannot resend.")
         return
 
-    last = resp.data[0]
+    last = rows[0]
     run_date = last["run_date"]
     print(f"  [{dept}] Resending alert for run_date={run_date} ...")
 
