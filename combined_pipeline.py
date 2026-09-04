@@ -1748,13 +1748,9 @@ def _run_single(run_start: datetime) -> None:
     print(f"  Mode: Single — {INDICATION or 'Asset'}")
 
     print("\n[Keywords]")
-    keywords = load_keywords()
-    if not INDICATION:
-        drug_terms      = load_drug_keywords()
-        drug_compiled   = _compile_drug_patterns(drug_terms)
-    else:
-        drug_terms      = []
-        drug_compiled   = []
+    keywords      = load_keywords()
+    drug_terms    = load_drug_keywords()
+    drug_compiled = _compile_drug_patterns(drug_terms)
 
     print("\n[Approvals] Syncing dashboard approvals...")
     db.sync_approved_to_tracking(DEPT_NAME, INDICATION)
@@ -1822,9 +1818,8 @@ def _run_single(run_start: datetime) -> None:
     if redirects:
         db.insert_canonical_changes(DEPT_NAME, to_date, redirects)
 
-    if not INDICATION:
-        print("\n[Step 6c] Tagging Primary Drug...")
-        tag_all_organized_drug(DEPT_NAME, drug_terms)
+    print("\n[Step 6c] Tagging Primary Drug...")
+    tag_all_organized_drug(DEPT_NAME, drug_terms)
 
     _duration = (datetime.now() - run_start).total_seconds()
 
