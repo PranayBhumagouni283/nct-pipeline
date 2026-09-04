@@ -3,18 +3,21 @@ sys.path.insert(0, r'C:\Users\LAPTOP\Downloads\NCT_Record_History_Changes')
 sys.path.insert(0, r'C:\Users\LAPTOP\Downloads\NCT_Combined_Pipeline')
 
 import json
+import db
 import combined_pipeline as cp
+
+DEPT_NAME = "ADC"
 
 print("=== PRE-FLIGHT CHECK ===\n")
 
 # 1. Dept init
 print("[1] Department setup...")
-cp.init_dept('ADC')
+cp.init_dept(DEPT_NAME)
 print()
 
-# 2. Tracking list
+# 2. Tracking list (loaded from DB, not Excel)
 print("[2] Tracking list...")
-nct_ids = cp.load_nct_ids_from_excel(str(cp.TRACKING_LIST))
+nct_ids = db.load_tracking_list(DEPT_NAME, "")  # asset tracking list
 print(f"  NCT IDs loaded : {len(nct_ids)}")
 print(f"  Sample         : {nct_ids[:3]}")
 print()
@@ -24,11 +27,11 @@ print("[3] Keywords...")
 kws = cp.load_keywords()
 print()
 
-# 4. State
+# 4. State (loaded from DB pipeline_state table)
 print("[4] State...")
-state = cp.load_state()
-lrd = state["last_run_date"]
-etag = state["etag"]
+state = db.load_pipeline_state(DEPT_NAME, "")
+lrd   = state.get("last_run_date")
+etag  = state.get("etag")
 print(f"  last_run_date : {lrd if lrd else 'never (first run)'}")
 print(f"  etag          : {'set' if etag else 'none (first run)'}")
 print()
@@ -92,5 +95,5 @@ if issues:
 else:
     print("ALL CHECKS PASSED - Ready to run:")
     print()
-    print("  python combined_pipeline.py ADC")
+    print(f"  python combined_pipeline.py {DEPT_NAME}")
 print()
