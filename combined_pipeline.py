@@ -1567,6 +1567,8 @@ def _run_unified(run_start: datetime) -> None:
     # ── Build pipeline registry ────────────────────────────────────────────
     # Each entry: indication → {tracking_set, rejected_set, keywords, matcher, new, modified, unmatched}
     all_indications = db.load_all_indications(DEPT_NAME)
+    if not all_indications:
+        print(f"  No indications configured for {DEPT_NAME} — running asset-only mode.")
     pipeline_keys   = [""] + all_indications    # "" = asset
 
     pipelines: dict[str, dict] = {}
@@ -1601,12 +1603,20 @@ def _run_unified(run_start: datetime) -> None:
     print(f"\n[Step 0] Baseline sync — {len(all_tracked)} unique tracked NCTs across all pipelines...")
     base_organized = sync_baseline(all_tracked, drug_compiled)
 
-    # ── Step 1 — Load state ───────────────────────────────────────────────
+    # ── Step 1 — Load state + ETag check ─────────────────────────────────
     state         = db.load_pipeline_state(DEPT_NAME, "")
-    new_etag      = state.get("etag") or ""
+    stored_etag   = state.get("etag")
+    new_etag      = stored_etag or ""
     last_run_date = state.get("last_run_date")
     today         = datetime.today().strftime("%Y-%m-%d")
-    print(f"\n[State]  last_run={last_run_date or 'never'}")
+    print(f"\n[State]  last_run={last_run_date or 'never'}  "
+          f"etag={'set' if stored_etag else 'none'}")
+
+    print("\n[ETag Check]")
+    has_new, new_etag = check_etag(stored_etag)
+    if not has_new:
+        print("\nNo new CT.gov batch. Nothing to do.")
+        return
 
     # ── Step 2 — FLOW 1: CT.gov date-range scan ───────────────────────────
     from_date, to_date = date_range(last_run_date)
@@ -1658,7 +1668,7 @@ def _run_unified(run_start: datetime) -> None:
         all_tracked, prev_versions, prev_rows, drug_compiled, base_organized
     )
 
-    # ── Step 5 — Canonical auto-update (asset tracking list) ──────────────
+    # ── Step 5 — Canonical auto-update (asset + all indication tracking lists) ──
     print("\n[Step 5] Canonical ID auto-update...")
     asset_ids = apply_canonical_updates(redirects, pipelines[""]["tracking_ids"])
     if redirects:
@@ -1671,6 +1681,28 @@ def _run_unified(run_start: datetime) -> None:
                     pass
             if not r.get("in_input"):
                 db.upsert_tracking_list(DEPT_NAME, [r["canonical"]], added_by="canonical", indication="")
+
+    # Apply canonical updates for each indication tracking list as well
+    for ind in all_indications:
+        original_ind_set = set(pipelines[ind]["tracking_ids"])
+        updated_ids = apply_canonical_updates(redirects, pipelines[ind]["tracking_ids"])
+        pipelines[ind]["tracking_ids"] = updated_ids
+        pipelines[ind]["tracking_set"] = set(updated_ids)
+        if redirects:
+            cleaned_ind_set = set(updated_ids)
+            for r in redirects:
+                old_id = r["requested"]
+                new_id = r["canonical"]
+                # Only act if this old_id was actually in this indication's tracking list
+                if old_id not in original_ind_set:
+                    continue
+                if old_id not in cleaned_ind_set:
+                    try:
+                        db.delete_from_tracking_list(old_id, DEPT_NAME, ind)
+                    except Exception:
+                        pass
+                if not r.get("in_input"):
+                    db.upsert_tracking_list(DEPT_NAME, [new_id], added_by="canonical", indication=ind)
 
     # ── Step 6 — Save per-pipeline results ────────────────────────────────
     print("\n[Step 6] Saving to DB...")
@@ -1702,6 +1734,8 @@ def _run_unified(run_start: datetime) -> None:
     # ── Step 7 — Save state + run history for each pipeline ───────────────
     print("\n[Step 7] Saving state and run history...")
     for ind, p in pipelines.items():
+        ind_tracking_set = p["tracking_set"]
+        ind_field_diffs  = len([r for r in newly_compared if r["nct_id"] in ind_tracking_set])
         db.save_pipeline_state(DEPT_NAME, new_etag, to_date, indication=ind)
         db.insert_run_history(
             dept            = DEPT_NAME,
@@ -1709,7 +1743,7 @@ def _run_unified(run_start: datetime) -> None:
             new_candidates  = len(p["new"]),
             unmatched       = new_unmatched_counts.get(ind, 0),  # only truly new unmatched
             modified_trials = len(p["modified"]),
-            field_diffs     = len(newly_compared),
+            field_diffs     = ind_field_diffs,
             canonical_fixes = len(redirects),
             duration_s      = _duration,
             output_file     = None,
