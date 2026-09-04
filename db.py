@@ -554,13 +554,29 @@ def insert_canonical_changes(dept: str, run_date: str, redirects: list[dict]):
 def batch_update_primary_drug(dept: str, updates: dict) -> None:
     if not updates:
         return
-    records = [
-        {"nct_id": k, "dept": dept, "Primary Drug": v}
-        for k, v in updates.items()
-    ]
-    _bulk_upsert("organized_trials", records, ["nct_id"])
+    rows = [(drug, nct_id, dept) for nct_id, drug in updates.items()]
+    global _conn
+    try:
+        with _cur() as cur:
+            psycopg2.extras.execute_values(
+                cur,
+                'UPDATE "CT".organized_trials AS o SET "Primary Drug" = v.drug '
+                'FROM (VALUES %s) AS v(drug, nct_id, dept) '
+                'WHERE o.nct_id = v.nct_id AND o.dept = v.dept',
+                rows,
+            )
+    except psycopg2.OperationalError:
+        _conn = None
+        with _cur() as cur:
+            psycopg2.extras.execute_values(
+                cur,
+                'UPDATE "CT".organized_trials AS o SET "Primary Drug" = v.drug '
+                'FROM (VALUES %s) AS v(drug, nct_id, dept) '
+                'WHERE o.nct_id = v.nct_id AND o.dept = v.dept',
+                rows,
+            )
     tagged = sum(1 for v in updates.values() if v)
-    print(f"  [DB] Primary Drug tagged: {tagged}/{len(records)} rows for {dept}")
+    print(f"  [DB] Primary Drug tagged: {tagged}/{len(updates)} rows for {dept}")
 
 
 def upsert_version_pairs(dept: str, records: list[dict]) -> None:
