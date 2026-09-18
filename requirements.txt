@@ -1,0 +1,10 @@
+psycopg2-binary>=2.9
+pandas>=2.0
+openpyxl>=3.1
+requests>=2.31
+python-dotenv>=1.0
+# Phase G baseline (MiniLM / pgvector) -- LEGACY, benchmark only
+sentence-transformers>=2.7
+# Phase G V1 (BGE-M3 / Elasticsearch)
+FlagEmbedding>=1.2
+elasticsearch>=8.14

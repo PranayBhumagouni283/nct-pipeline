@@ -1,0 +1,39 @@
+# Secrets — never commit these
+.env
+smtp_config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+
+# Local data & output — too large and department-specific
+ADC/
+ASMB/
+output/
+*.xlsx
+*.xls
+*.csv
+_local_data/
+
+# Local utility scripts — one-time backfill, migrate, check, fix scripts
+_local_scripts/
+
+# Pipeline state files
+_reparse_done_*.json
+
+# Logs and scratch output files
+*.log
+aws_gapfill.log
+
+# OS
+.DS_Store
+Thumbs.db
