@@ -182,10 +182,12 @@ def _run(nct_ids: list[str], prod_url: str, aws_url: str | None, openai_key: str
         print(f"\n  [Concept Extraction] {len(nct_ids)} trial(s) to extract...")
 
     # Load regex dictionary from PROD
-    dict_conn  = connect(prod_url)
-    dict_rows  = load_dict_rows(dict_conn)
+    # load_dict_rows returns a grouped dict {concept: [rows]}; flatten for _build_variant_lookup
+    dict_conn    = connect(prod_url)
+    dict_grouped = load_dict_rows(dict_conn)
     dict_conn.close()
-    var_lookup = _build_variant_lookup(dict_rows)
+    dict_rows_flat = [row for rows in dict_grouped.values() for row in rows]
+    var_lookup     = _build_variant_lookup(dict_rows_flat)
 
     # Setup OpenAI client (optional — regex-only mode if key not set)
     client = None
@@ -211,7 +213,7 @@ def _run(nct_ids: list[str], prod_url: str, aws_url: str | None, openai_key: str
         row_d  = dict(row)
 
         # Pass 1: Regex (REGEX_PRIMARY + age_range_normalized + endpoints_normalized)
-        regex_res = regex_pass(row_d, dict_rows)
+        regex_res = regex_pass(row_d, dict_grouped)
 
         # Pass 2: LLM for all 19 non-regex-only cols (regardless of what regex found)
         llm_res: dict = {}
