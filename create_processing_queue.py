@@ -1,5 +1,5 @@
 """
-create_processing_queue.py — One-time setup: create trial_processing_queue in PROD + AWS.
+create_processing_queue.py — One-time setup: create trial_processing_queue in PROD.
 """
 import os
 import psycopg2
@@ -23,26 +23,17 @@ CREATE TABLE IF NOT EXISTS "CT".trial_processing_queue (
 );
 """
 
-def create(label: str, url: str) -> None:
-    conn = psycopg2.connect(url)
+prod_url = os.environ.get("DATABASE_URL")
+
+if not prod_url:
+    print("DATABASE_URL not set — check your .env file")
+else:
+    conn = psycopg2.connect(prod_url)
     conn.autocommit = True
     cur = conn.cursor()
     cur.execute(DDL)
     cur.close()
     conn.close()
-    print(f"  [{label}] trial_processing_queue — OK")
-
-prod_url = os.environ.get("DATABASE_URL")
-aws_url  = os.environ.get("DATABASE_URL_AWS")
-
-if not prod_url:
-    print("DATABASE_URL not set — check your .env file")
-else:
-    create("PROD", prod_url)
-
-if aws_url:
-    create("AWS", aws_url)
-else:
-    print("  [AWS] DATABASE_URL_AWS not set — skipped")
+    print("  trial_processing_queue — OK")
 
 print("\nDone.")
