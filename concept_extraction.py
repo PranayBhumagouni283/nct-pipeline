@@ -3,7 +3,7 @@ concept_extraction.py — Post-pipeline concept extraction for organized_trials.
 
 Called from combined_pipeline.py after new/modified trials are upserted.
 Runs regex + LLM (GPT-4o-mini) extraction on a list of NCT IDs and writes
-all 21 concept columns to both PROD and AWS RDS.
+all 21 concept columns to PROD.
 
 Extraction policy:
   - Regex extracts REGEX_PRIMARY (12 cols) + age_range_normalized + endpoints_normalized
@@ -122,7 +122,7 @@ def _fetch_rows(db_url: str, nct_ids: list[str]) -> list:
     return rows
 
 
-def _push(db_url: str, label: str, results: dict[str, dict], verbose: bool) -> None:
+def _push(db_url: str, results: dict[str, dict], verbose: bool) -> None:
     """Write extracted concept values to organized_trials in batches of 100."""
     items = [(nct_id, vals) for nct_id, vals in results.items() if vals]
     if not items:
@@ -147,23 +147,22 @@ def _push(db_url: str, label: str, results: dict[str, dict], verbose: bool) -> N
         cur.close()
         conn.close()
     if verbose:
-        print(f"  [{label}] Concept extraction written: {written} trials")
+        print(f"  [Concept Extraction] Written: {written} trials")
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 def run_for_nct_ids(nct_ids: list[str], verbose: bool = True) -> None:
     """
-    Run concept extraction for the given NCT IDs and push to PROD + AWS.
-    Reads DATABASE_URL and DATABASE_URL_AWS from environment (.env).
+    Run concept extraction for the given NCT IDs and push to PROD.
+    Reads DATABASE_URL from environment (.env).
     Silently skips LLM if OPENAI_API_KEY is not set.
     Wrapped in try/except so pipeline continues on any failure.
     """
     if not nct_ids:
         return
 
-    prod_url = os.environ.get("DATABASE_URL")
-    aws_url  = os.environ.get("DATABASE_URL_AWS")
+    prod_url   = os.environ.get("DATABASE_URL")
     openai_key = os.environ.get("OPENAI_API_KEY")
 
     if not prod_url:
@@ -172,12 +171,12 @@ def run_for_nct_ids(nct_ids: list[str], verbose: bool = True) -> None:
         return
 
     try:
-        _run(nct_ids, prod_url, aws_url, openai_key, verbose)
+        _run(nct_ids, prod_url, openai_key, verbose)
     except Exception as e:
         print(f"  [Concept Extraction] ERROR (non-fatal): {e}")
 
 
-def _run(nct_ids: list[str], prod_url: str, aws_url: str | None, openai_key: str | None, verbose: bool) -> None:
+def _run(nct_ids: list[str], prod_url: str, openai_key: str | None, verbose: bool) -> None:
     if verbose:
         print(f"\n  [Concept Extraction] {len(nct_ids)} trial(s) to extract...")
 
@@ -249,9 +248,4 @@ def _run(nct_ids: list[str], prod_url: str, aws_url: str | None, openai_key: str
     if verbose:
         print(f"  [Concept Extraction] Extracted for {len(results)}/{len(rows)} trials")
 
-    # Push to PROD
-    _push(prod_url, "PROD", results, verbose)
-
-    # Push to AWS
-    if aws_url:
-        _push(aws_url, "AWS", results, verbose)
+    _push(prod_url, results, verbose)
