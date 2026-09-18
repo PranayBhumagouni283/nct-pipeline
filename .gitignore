@@ -30,6 +30,21 @@ _local_scripts/
 # Pipeline state files
 _reparse_done_*.json
 
+# Future / agent / embedding scripts — local only, not part of pipeline run
+change_parser.py
+chunk_generator_v2.py
+complete_schema.sql
+rebuild_schema.sql
+schema.sql
+conversational_agent.py
+db_query_handler.py
+embedding_worker.py
+embedding_worker_v2.py
+es_retriever.py
+import_tracking_ncts.py
+incremental_processor.py
+master_dashboard.py
+
 # Logs and scratch output files
 *.log
 aws_gapfill.log
