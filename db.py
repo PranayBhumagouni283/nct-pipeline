@@ -289,11 +289,20 @@ def load_all_indications(dept: str) -> list[str]:
 
 
 def load_dept_keywords(dept: str) -> list[dict]:
-    """Return [{drug_name, alias_names}] for the dept (replaces direct _db() calls)."""
+    """Return [{drug_name, alias_names}] for the dept.
+    ADC uses ct.adc_trial_refs (drug_name + drug_alias_name) as the source of truth.
+    """
     with _cur() as cur:
-        cur.execute(
-            "SELECT drug_name, alias_names FROM dept_keywords WHERE dept = %s", (dept,)
-        )
+        if dept == "ADC":
+            cur.execute("""
+                SELECT DISTINCT ON (drug_name) drug_name, drug_alias_name AS alias_names
+                FROM ct.adc_trial_refs
+                ORDER BY drug_name, drug_alias_name
+            """)
+        else:
+            cur.execute(
+                "SELECT drug_name, alias_names FROM dept_keywords WHERE dept = %s", (dept,)
+            )
         return [dict(r) for r in cur.fetchall()]
 
 
@@ -820,6 +829,54 @@ def delete_from_tracking_list(nct_id: str, dept: str, indication: str = ""):
             (nct_id, dept, indication),
         )
     print(f"  [DB] Removed {nct_id} from tracking list for {dept}/{indication or 'asset'}")
+
+
+def cleanup_removed_adc_trials() -> list[str]:
+    """
+    Find ADC NCTs that exist in organized_trials but are no longer in ct.adc_trial_refs.
+    Delete all their data from every related table.
+    Called at the start of each ADC pipeline run.
+    """
+    with _cur() as cur:
+        cur.execute("""
+            SELECT DISTINCT nct_id FROM organized_trials
+            WHERE dept = 'ADC'
+              AND nct_id NOT IN (
+                SELECT DISTINCT trial_identifier FROM ct.adc_trial_refs
+                WHERE trial_identifier LIKE 'NCT%%'
+              )
+        """)
+        removed = [r["nct_id"] for r in cur.fetchall()]
+
+    if not removed:
+        print("  [Cleanup] No removed ADC trials found.")
+        return []
+
+    print(f"  [Cleanup] {len(removed)} ADC trials removed from ref table — purging from all tables...")
+
+    indication_tables = [
+        "tracking_list", "new_candidates_log", "modified_log",
+        "unmatched_log", "field_changes_log", "rejected_trials",
+    ]
+    dept_tables = ["organized_trials", "version_cache", "nct_version_pairs"]
+
+    with _cur() as cur:
+        nct_arr = removed  # list of strings for ANY(%s::text[])
+        for table in indication_tables:
+            cur.execute(
+                f'DELETE FROM "{table}" WHERE nct_id = ANY(%s::text[]) AND dept = %s',
+                (nct_arr, "ADC"),
+            )
+            print(f"    {table}: deleted {cur.rowcount} rows")
+        for table in dept_tables:
+            cur.execute(
+                f'DELETE FROM "{table}" WHERE nct_id = ANY(%s::text[]) AND dept = %s',
+                (nct_arr, "ADC"),
+            )
+            print(f"    {table}: deleted {cur.rowcount} rows")
+
+    print(f"  [Cleanup] Done — purged {len(removed)} trials: {removed[:5]}{'...' if len(removed) > 5 else ''}")
+    return removed
 
 
 def unreject_trial(nct_id: str, dept: str, indication: str = ""):
