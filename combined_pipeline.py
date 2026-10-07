@@ -263,7 +263,18 @@ def _load_drug_lookup() -> None:
         return
     try:
         with db._cur() as cur:
-            cur.execute('SELECT drug_name, alias_names FROM dept_keywords WHERE drug_name IS NOT NULL')
+            cur.execute("""
+                SELECT drug_name, alias_names FROM dept_keywords
+                WHERE drug_name IS NOT NULL AND dept != 'ADC'
+                UNION ALL
+                SELECT drug_name, drug_alias_name AS alias_names
+                FROM (
+                    SELECT DISTINCT ON (drug_name) drug_name, drug_alias_name
+                    FROM ct.adc_trial_refs
+                    ORDER BY drug_name, drug_alias_name
+                ) adc_ref
+                WHERE drug_name IS NOT NULL
+            """)
             for row in cur.fetchall():
                 canonical = (row['drug_name'] or '').strip()
                 if not canonical:
@@ -1812,6 +1823,11 @@ def _run_unified(run_start: datetime) -> None:
     a single scan serves all pipelines.
     """
     print("  Mode: Unified (asset + all indications — single CT.gov fetch)")
+
+    # ── ADC: purge trials removed from ref table ───────────────────────────
+    if DEPT_NAME == "ADC":
+        print("\n[Ref Table Cleanup]")
+        db.cleanup_removed_adc_trials()
 
     # ── Drug keywords (asset only) ─────────────────────────────────────────
     print("\n[Keywords]")
