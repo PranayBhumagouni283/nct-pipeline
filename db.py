@@ -7,6 +7,7 @@ Uses psycopg2 — install with: pip install psycopg2-binary
 
 import math
 import os
+import re
 from datetime import date as _date, datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -351,6 +352,12 @@ def upsert_organized_trials(dept: str, rows: list[dict]):
     records = [r for row in rows if (r := _record(row))]
     _bulk_upsert("organized_trials", records, ["nct_id"], preserve_cols=_CONCEPT_COLS)
     print(f"  [DB] Organized trials upserted: {len(records)} rows for {dept}")
+
+    # Sync trial_locations only for ADC dept (Global Explorer is ADC-scoped)
+    if dept == "ADC":
+        for rec in records:
+            sync_trial_locations(rec["nct_id"], rec.get("Locations") or "")
+        print(f"  [DB] trial_locations synced: {len(records)} ADC trials")
 
 
 def upsert_version_cache(dept: str, all_rows: list[dict]):
@@ -855,3 +862,122 @@ def sync_approved_to_tracking(dept: str, indication: str = "") -> list[str]:
             )
     print(f"  [DB] Synced {len(approved)} approved NCT(s) to tracking list for {dept}/{indication or 'asset'}")
     return approved
+
+
+# ── trial_locations — parsed location rows ────────────────────────────────────
+
+# Countries that have meaningful state/province data in CT.gov Locations strings.
+_STATE_COUNTRIES = {"United States", "Canada", "Australia"}
+
+# Known country names used to identify the country token within a parenthetical.
+# Built lazily from the DB on first call.
+_KNOWN_COUNTRIES: set[str] | None = None
+
+def _get_known_countries() -> set[str]:
+    global _KNOWN_COUNTRIES
+    if _KNOWN_COUNTRIES is not None:
+        return _KNOWN_COUNTRIES
+    with _cur() as cur:
+        cur.execute("""
+            SELECT DISTINCT TRIM(c) AS country
+            FROM organized_trials,
+                 UNNEST(string_to_array(COALESCE(countries, ''), ' | ')) AS c
+            WHERE TRIM(c) != ''
+        """)
+        _KNOWN_COUNTRIES = {r["country"] for r in cur.fetchall()}
+    return _KNOWN_COUNTRIES
+
+
+def parse_locations(locations_str: str) -> list[dict]:
+    """
+    Parse the pipe-delimited Locations column into a list of structured dicts.
+    Each dict: {site_name, city, state, country, zip}
+    state is only populated for United States, Canada, Australia.
+    """
+    if not locations_str or not locations_str.strip():
+        return []
+
+    known = _get_known_countries()
+    rows = []
+
+    for entry in locations_str.split(" | "):
+        entry = entry.strip()
+        if not entry:
+            continue
+
+        # Strip trailing [STATUS] e.g. [RECRUITING]
+        entry = re.sub(r"\s*\[[^\]]+\]\s*$", "", entry).strip()
+
+        # Split into site_name (before first '(') and parenthetical content
+        paren_match = re.search(r"^(.*?)\(([^)]+)\)\s*$", entry)
+        if not paren_match:
+            continue
+
+        raw_site = paren_match.group(1).strip()
+        # Strip site numbers: "UCLA ( Site 0014)" → "UCLA"
+        if raw_site:
+            raw_site = re.sub(r"\s*\(\s*[Ss]ite\s+\d+\s*\)\s*$", "", raw_site).strip()
+        # Discard pure numeric codes like "001", "002" — not useful institution names
+        if raw_site and re.fullmatch(r"\d+", raw_site):
+            raw_site = ""
+        site_name = raw_site or None
+
+        parts = [p.strip() for p in paren_match.group(2).split(",")]
+
+        country = None
+        state = None
+        city = None
+        zip_code = None
+
+        # Find the country token by matching against known country names
+        for i, part in enumerate(parts):
+            # Also handle "Turkey (Türkiye)" stored as one token
+            candidate = re.sub(r"\s*\([^)]+\)", "", part).strip()
+            if candidate in known:
+                country = candidate
+                city = parts[0] if i > 0 else None
+                # State/province: field immediately before the country token
+                if country in _STATE_COUNTRIES and i >= 2:
+                    state = parts[i - 1]
+                # Zip: field immediately after the country token
+                if i + 1 < len(parts):
+                    potential_zip = parts[i + 1].strip()
+                    if potential_zip:
+                        zip_code = potential_zip
+                break
+
+        if country:
+            rows.append({
+                "site_name": site_name,
+                "city":      city,
+                "state":     state,
+                "country":   country,
+                "zip":       zip_code,
+            })
+
+    return rows
+
+
+def sync_trial_locations(nct_id: str, locations_str: str) -> int:
+    """
+    Delete existing trial_locations rows for nct_id and re-insert
+    rows parsed from the Locations string. Returns number of rows inserted.
+    Called automatically by upsert_organized_trials for every trial touched.
+    """
+    rows = parse_locations(locations_str or "")
+    with _cur() as cur:
+        cur.execute('DELETE FROM "CT".trial_locations WHERE nct_id = %s', (nct_id,))
+        if rows:
+            psycopg2.extras.execute_values(
+                cur,
+                """
+                INSERT INTO "CT".trial_locations
+                    (nct_id, site_name, city, state, country, zip)
+                VALUES %s
+                """,
+                [
+                    (nct_id, r["site_name"], r["city"], r["state"], r["country"], r["zip"])
+                    for r in rows
+                ],
+            )
+    return len(rows)
