@@ -1824,9 +1824,10 @@ def _run_unified(run_start: datetime) -> None:
     """
     print("  Mode: Unified (asset + all indications — single CT.gov fetch)")
 
-    # ── ADC: purge trials removed from ref table ───────────────────────────
+    # ── ADC: clean dirty source data, then purge removed trials ───────────
     if DEPT_NAME == "ADC":
         print("\n[Ref Table Cleanup]")
+        db.trim_adc_ref_identifiers()
         db.cleanup_removed_adc_trials()
 
     # ── Drug keywords (asset only) ─────────────────────────────────────────
