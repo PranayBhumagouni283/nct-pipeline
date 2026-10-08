@@ -901,10 +901,10 @@ def trim_adc_ref_identifiers() -> int:
     Called at the start of each ADC pipeline run before load_tracking_list.
     """
     with _cur() as cur:
-        cur.execute("""
+        cur.execute(r"""
             UPDATE ct.adc_trial_refs
-            SET trial_identifier = TRIM(trial_identifier)
-            WHERE trial_identifier != TRIM(trial_identifier)
+            SET trial_identifier = REGEXP_REPLACE(trial_identifier, '^\s+|\s+$', '', 'g')
+            WHERE trial_identifier ~ '^\s|\s$'
         """)
         fixed = cur.rowcount
     if fixed:
