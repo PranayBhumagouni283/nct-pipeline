@@ -894,6 +894,24 @@ def cleanup_removed_adc_trials() -> list[str]:
     return removed
 
 
+def trim_adc_ref_identifiers() -> int:
+    """
+    Strip leading/trailing whitespace (including \\n) from ct.adc_trial_refs.trial_identifier.
+    Returns the number of rows fixed.
+    Called at the start of each ADC pipeline run before load_tracking_list.
+    """
+    with _cur() as cur:
+        cur.execute("""
+            UPDATE ct.adc_trial_refs
+            SET trial_identifier = TRIM(trial_identifier)
+            WHERE trial_identifier != TRIM(trial_identifier)
+        """)
+        fixed = cur.rowcount
+    if fixed:
+        print(f"  [DB] Trimmed whitespace from {fixed} trial_identifier(s) in ct.adc_trial_refs")
+    return fixed
+
+
 def unreject_trial(nct_id: str, dept: str, indication: str = ""):
     with _cur() as cur:
         cur.execute(
