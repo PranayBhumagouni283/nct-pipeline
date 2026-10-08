@@ -171,10 +171,17 @@ def load_departments() -> list[str]:
 
 def load_tracking_list(dept: str, indication: str = "") -> list[str]:
     with _cur() as cur:
-        cur.execute(
-            "SELECT nct_id FROM tracking_list WHERE dept = %s AND indication = %s",
-            (dept, indication),
-        )
+        if dept == "ADC" and not indication:
+            cur.execute("""
+                SELECT DISTINCT trial_identifier AS nct_id
+                FROM ct.adc_trial_refs
+                WHERE trial_identifier LIKE 'NCT%%'
+            """)
+        else:
+            cur.execute(
+                "SELECT nct_id FROM tracking_list WHERE dept = %s AND indication = %s",
+                (dept, indication),
+            )
         ids = [r["nct_id"] for r in cur.fetchall()]
     print(f"  [DB] Tracking list: {len(ids)} NCTs for {dept}/{indication or 'asset'}")
     return ids
