@@ -843,8 +843,9 @@ def delete_from_tracking_list(nct_id: str, dept: str, indication: str = ""):
 
 def cleanup_removed_adc_trials() -> list[str]:
     """
-    Find ADC NCTs that exist in organized_trials but are no longer in ct.adc_trial_refs.
-    Delete all their data from every related table.
+    Find ADC NCTs no longer in ct.adc_trial_refs AND not in any indication-specific
+    tracking_list (Breast Cancer, Ovarian Cancer etc. are independent — skip those).
+    Only fully-orphaned trials (absent from ref table AND all indication tracking) are purged.
     Called at the start of each ADC pipeline run.
     """
     with _cur() as cur:
@@ -855,6 +856,10 @@ def cleanup_removed_adc_trials() -> list[str]:
                 SELECT DISTINCT trial_identifier FROM ct.adc_trial_refs
                 WHERE trial_identifier LIKE 'NCT%%'
               )
+              AND nct_id NOT IN (
+                SELECT DISTINCT nct_id FROM tracking_list
+                WHERE dept = 'ADC' AND indication != ''
+              )
         """)
         removed = [r["nct_id"] for r in cur.fetchall()]
 
@@ -862,7 +867,7 @@ def cleanup_removed_adc_trials() -> list[str]:
         print("  [Cleanup] No removed ADC trials found.")
         return []
 
-    print(f"  [Cleanup] {len(removed)} ADC trials removed from ref table — purging from all tables...")
+    print(f"  [Cleanup] {len(removed)} ADC trials fully removed — purging from all tables...")
 
     indication_tables = [
         "tracking_list", "new_candidates_log", "modified_log",
@@ -871,7 +876,7 @@ def cleanup_removed_adc_trials() -> list[str]:
     dept_tables = ["organized_trials", "version_cache", "nct_version_pairs"]
 
     with _cur() as cur:
-        nct_arr = removed  # list of strings for ANY(%s::text[])
+        nct_arr = removed
         for table in indication_tables:
             cur.execute(
                 f'DELETE FROM "{table}" WHERE nct_id = ANY(%s::text[]) AND dept = %s',
