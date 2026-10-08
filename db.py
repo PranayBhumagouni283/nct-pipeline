@@ -171,12 +171,22 @@ def load_departments() -> list[str]:
 
 def load_tracking_list(dept: str, indication: str = "") -> list[str]:
     with _cur() as cur:
-        if dept == "ADC" and not indication:
-            cur.execute("""
-                SELECT DISTINCT trial_identifier AS nct_id
-                FROM ct.adc_trial_refs
-                WHERE trial_identifier LIKE 'NCT%%'
-            """)
+        if dept == "ADC":
+            if not indication:
+                # Asset — all NCTs in ref table
+                cur.execute("""
+                    SELECT DISTINCT trial_identifier AS nct_id
+                    FROM ct.adc_trial_refs
+                    WHERE trial_identifier LIKE 'NCT%%'
+                """)
+            else:
+                # Indication-specific — filter ref table by indication
+                cur.execute("""
+                    SELECT DISTINCT trial_identifier AS nct_id
+                    FROM ct.adc_trial_refs
+                    WHERE trial_identifier LIKE 'NCT%%'
+                      AND indication = %s
+                """, (indication,))
         else:
             cur.execute(
                 "SELECT nct_id FROM tracking_list WHERE dept = %s AND indication = %s",
