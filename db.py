@@ -185,7 +185,7 @@ def load_tracking_list(dept: str, indication: str = "") -> list[str]:
                 "SELECT nct_id FROM tracking_list WHERE dept = %s AND indication = %s",
                 (dept, indication),
             )
-        ids = [r["nct_id"] for r in cur.fetchall()]
+        ids = [r["nct_id"].strip() for r in cur.fetchall()]
     print(f"  [DB] Tracking list: {len(ids)} NCTs for {dept}/{indication or 'asset'}")
     return ids
 
