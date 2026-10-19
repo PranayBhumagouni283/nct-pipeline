@@ -521,7 +521,7 @@ def upsert_unmatched(dept: str, run_date: str, trials: list[dict], indication: s
         nonlocal new_count
         for i in range(0, len(rows), _BATCH):
             result = psycopg2.extras.execute_values(cur, sql, rows[i : i + _BATCH], fetch=True)
-            new_count += sum(1 for r in result if r[0])
+            new_count += sum(1 for r in result if r['is_new'])
     try:
         with _cur() as cur:
             _run(cur)
