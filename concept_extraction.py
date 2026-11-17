@@ -201,6 +201,16 @@ def run_for_nct_ids(nct_ids: list[str], verbose: bool = True) -> None:
             print("  [Concept Extraction] DATABASE_URL not set — skipping")
         return
 
+    # Fall back to key stored in CT.app_credentials if not in environment
+    if not openai_key:
+        try:
+            import db as _db
+            rows_cred = _db.sql('SELECT key_value FROM "CT".app_credentials WHERE key_name = \'OPENAI_API_KEY\'')
+            if rows_cred:
+                openai_key = rows_cred[0]["key_value"]
+        except Exception:
+            pass
+
     try:
         _run(nct_ids, prod_url, openai_key, verbose)
     except Exception as e:
