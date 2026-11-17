@@ -13,11 +13,11 @@ Each pipeline run:
 
 ## Departments
 
-| Department | Asset Keywords | Tracked Trials | Indications |
-|---|---|---|---|
-| ADC | 2,076 | 2,725 | Breast Cancer, Cervical Cancer, Endometrial Cancer, HNSCC, NSCLC, Ovarian Cancer, Pancreatic Cancer, Prostate Cancer, SCLC |
-| Infectious Diseases | 541 | 832 | CMV, HSV, Influenza, RSV, VZV |
-| Liver Diseases | 454 | 530 | HBV, HDV, PBC, PSC |
+| Department | Tracked Trials | Indications |
+|---|---|---|
+| ADC | ~2,725 | Breast Cancer, Cervical Cancer, Endometrial Cancer, HNSCC, NSCLC, Ovarian Cancer, Pancreatic Cancer, Prostate Cancer, SCLC |
+| Infectious Diseases | ~832 | CMV, HSV, Influenza, RSV, VZV |
+| Liver Diseases | ~530 | HBV, HDV, PBC, PSC |
 
 The pipeline is fully department-agnostic — keywords and indications are loaded from the database by department name.
 
@@ -26,7 +26,7 @@ The pipeline is fully department-agnostic — keywords and indications are loade
 ### Prerequisites
 
 - Python 3.10+
-- PostgreSQL database with the NCT schema (see `schema.sql`)
+- PostgreSQL database with the NCT schema (tables created separately)
 - ClinicalTrials.gov API access (public, no key needed)
 
 ### Install
@@ -56,7 +56,7 @@ python combined_pipeline.py ADC
 python combined_pipeline.py "Liver Diseases"
 python combined_pipeline.py "Infectious Diseases"
 
-# Run one specific indication only (debug mode)
+# Run one specific indication only
 python combined_pipeline.py ADC --indication "Breast Cancer"
 python combined_pipeline.py "Infectious Diseases" --indication "CMV"
 ```
@@ -66,21 +66,34 @@ python combined_pipeline.py "Infectious Diseases" --indication "CMV"
 ## Project Structure
 
 ```
-combined_pipeline.py    # Main orchestrator — CT.gov fetch, classify, diff
-db.py                   # PostgreSQL interface (all reads/writes)
-norm.py                 # Normalization — org aliases, condition cleanup
-run_all.py              # Run all departments sequentially
-preflight.py            # Pre-run validation checks
-resend_alert.py         # Resend email alert for a past run
-list_indications.py     # List all indications configured in DB
-master_dashboard.py     # Generate Excel analytics report
+# Entry points
+run_all.py                  # Run all departments sequentially
+combined_pipeline.py        # Main orchestrator — CT.gov fetch, classify, diff
+preflight.py                # Pre-run validation checks
 
-schema.sql              # Full database schema (run once to set up)
-complete_schema.sql     # Schema with all indexes and constraints
-rebuild_schema.sql      # Drop + recreate schema
+# Core modules
+db.py                       # PostgreSQL interface (all reads/writes)
+norm.py                     # Normalization — org aliases, condition cleanup
+concept_extraction.py       # Concept/LOT extraction for tracked trials
+
+# CT.gov data layer (fetched from ClinicalTrials.gov API)
+CT_PULL.py                  # Fetch raw trial data from CT.gov REST API
+NCT_Changes_Tracker.py      # Field-level diff tracking between versions
+all_versions_compare.py     # Full version history comparison
+
+# Utilities (run manually)
+list_indications.py         # List all indications configured in DB
+resend_alert.py             # Resend email alert for a past run
+reset_pipeline_state.py     # Reset pipeline state for a department
+
+# Config
+requirements.txt
+.env.example
+smtp_config.json.example
+PIPELINE_COMMANDS.md        # Full command reference
 ```
 
-## Database Schema
+## Database
 
 The pipeline writes to a PostgreSQL schema named `"CT"`. Key tables:
 
@@ -98,19 +111,16 @@ The pipeline writes to a PostgreSQL schema named `"CT"`. Key tables:
 | `dept_indications` | Indication-specific keyword configuration |
 | `dept_general_terms` | General (non-drug) matching terms per department |
 
-Run `schema.sql` once against your PostgreSQL database to create all tables.
-
 ## Environment Variables
 
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
 
-## Department Data (local-only, gitignored)
+## Local Data (gitignored)
 
 Each department has its own folder under `_local_data/` with:
 - `output/` — generated Excel reports per run
 - `alert_config.json` — email recipients for that department
-- `state.json` — last run date and ETag (auto-created)
 
 These folders are excluded from the repository.
