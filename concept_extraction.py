@@ -13,7 +13,7 @@ Extraction policy:
   - age_range_normalized: regex only (structured parsing)
   - Outputs are normalized: variant forms mapped to canonical names via dictionary
 """
-import os, sys
+import os, re, sys
 from pathlib import Path
 import importlib.util
 import psycopg2, psycopg2.extras
@@ -51,7 +51,7 @@ LLM_COLS = [c for c in ALL_CONCEPT_COLS
 
 # Source columns needed to perform extraction
 _FETCH_SQL_COLS = ", ".join([
-    "nct_id",
+    "nct_id", "dept",
     '"eligibilityCriteria"', '"briefSummary"', '"conditions"',
     '"Primary Outcomes"', '"Secondary Outcomes"',
     '"detailedDescription"', '"Interventions"',
@@ -59,6 +59,37 @@ _FETCH_SQL_COLS = ", ".join([
     '"Minimum Age"', '"Standard Ages"',
     "min_age_value", "min_age_unit",
 ])
+
+# Values that only appear in exclusion-criteria boilerplate for non-ID/LD depts (e.g. ADC).
+# Filtered out post-extraction for ADC to eliminate hepatitis B safety-screen false positives.
+_ADC_BLOCKLIST: dict[str, set[str]] = {
+    "biomarkers":   {"HBSAG", "HBV_GENOTYPE"},
+    "disease_state": {"CHRONIC_HEPATITIS_B", "CHRONIC_HEPATITIS_D"},
+    "biomarker_status": {"HBEAG_NEGATIVE", "HBEAG_POSITIVE", "HBV_AVIREMIC", "HBV_VIREMIC"},
+    "genomic_alteration": {"HBV_DRUG_RESISTANT_VARIANT", "HBV_GENOTYPE_A_H", "HBV_RESISTANCE_MUTATION"},
+}
+
+# Regimen values that are pure dosing schedules with no drug/regimen identity — filter these out.
+# Catches bare frequency/route tokens AND numeric dose strings like "1.8 MG/KG IV Q3W".
+_REGIMEN_DOSING_ONLY_RE = re.compile(
+    r"^"
+    r"(?:"
+    # Numeric dose: starts with a number (no preceding drug word)
+    r"[0-9]+(?:\.[0-9]+)?"
+    r"\s*(?:MG/KG|MG/M2|MCG/KG|MCG|MG|ML|IU|AUC)?"
+    r"(?:\s+(?:IV|SC|PO|ORAL|IM))?"
+    r"(?:\s+(?:Q[0-9]+W|QW|Q[0-9]+D|Q[0-9]+H|ONCE\s+DAILY|TWICE\s+DAILY|WEEKLY|"
+    r"BIWEEKLY|MONTHLY|EVERY\s+[0-9]+\s+WEEKS?|EVERY\s+[0-9]+\s+DAYS?))?"
+    r"|"
+    # Pure route/frequency without leading number
+    r"Q[0-9]+W|QW|Q[0-9]+D|Q[0-9]+H|"
+    r"ONCE\s+DAILY|TWICE\s+DAILY|WEEKLY|BIWEEKLY|MONTHLY|"
+    r"[0-9]+-DAY\s+CYCLE|IV\s+INFUSION|IV|SC|PO|ORAL|"
+    r"DAY\s+[0-9]+|EVERY\s+[0-9]+\s+WEEKS?|EVERY\s+[0-9]+\s+DAYS?"
+    r")"
+    r"$",
+    re.IGNORECASE,
+)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -233,6 +264,35 @@ def _run(nct_ids: list[str], prod_url: str, openai_key: str | None, verbose: boo
                 normalized = _normalize_value(_normalise(raw), col, var_lookup)
                 if normalized:
                     merged[col] = normalized
+
+        # Dept-specific post-processing
+        dept = row_d.get("dept", "")
+        if dept == "ADC":
+            for col, blocked in _ADC_BLOCKLIST.items():
+                if col in merged and merged[col]:
+                    parts = [v for v in merged[col].split("|") if v.strip().upper() not in blocked]
+                    merged[col] = "|".join(parts) if parts else None
+                    if not merged[col]:
+                        del merged[col]
+
+        # Filter regimen values that are pure dosing schedules (no drug/regimen name)
+        if "regimen" in merged and merged["regimen"]:
+            parts = [v for v in merged["regimen"].split("|")
+                     if not _REGIMEN_DOSING_ONLY_RE.match(v.strip())]
+            merged["regimen"] = "|".join(parts) if parts else None
+            if not merged["regimen"]:
+                del merged["regimen"]
+
+        # Normalize combination_therapy: spaces within drug name tokens -> underscores
+        # Preserves " + " separator between drugs (e.g. "SACITUZUMAB GOVITECAN + CAPE..." ->
+        # "SACITUZUMAB_GOVITECAN + CAPE...")
+        if "combination_therapy" in merged and merged["combination_therapy"]:
+            def _norm_combo(val: str) -> str:
+                tokens = val.split(" + ")
+                return " + ".join(t.strip().replace(" ", "_") for t in tokens)
+            merged["combination_therapy"] = "|".join(
+                _norm_combo(item) for item in merged["combination_therapy"].split("|")
+            )
 
         if merged:
             results[nct_id] = merged
