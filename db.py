@@ -171,19 +171,24 @@ def load_departments() -> list[str]:
 
 def load_tracking_list(dept: str, indication: str = "") -> list[str]:
     with _cur() as cur:
-        if dept == "ADC" and not indication:
-            # ADC asset — ref table is source of truth
+        if dept == "ADC":
+            # ALL ADC pipelines (asset + all indications) use adc_trial_refs as
+            # source of truth. Indication-specific ADC runs must not use tracking_list
+            # because ADC trials are never inserted there — using it caused every
+            # ADC trial to appear as "unmatched" for indication pipelines.
             cur.execute("""
                 SELECT DISTINCT trial_identifier AS nct_id
                 FROM ct.adc_trial_refs
                 WHERE trial_identifier LIKE 'NCT%%'
             """)
         else:
-            # All indication-specific pipelines (ADC/Breast Cancer etc.) and LD/ID
-            # continue to read from the tracking_list SQL table
+            # LD / ID and future depts: load all tracked NCTs for the dept regardless of
+            # indication. A trial tracked under any indication for the same dept is already
+            # tracked — filtering by indication caused cross-indication duplicates to appear
+            # as new/unmatched on every other indication run.
             cur.execute(
-                "SELECT nct_id FROM tracking_list WHERE dept = %s AND indication = %s",
-                (dept, indication),
+                "SELECT DISTINCT nct_id FROM tracking_list WHERE dept = %s",
+                (dept,),
             )
         ids = [r["nct_id"].strip() for r in cur.fetchall()]
     print(f"  [DB] Tracking list: {len(ids)} NCTs for {dept}/{indication or 'asset'}")
