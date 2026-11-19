@@ -428,7 +428,7 @@ def insert_new_candidates(dept: str, run_date: str, trials: list[dict], indicati
                 """
                 SELECT DISTINCT nct_id FROM new_candidates_log
                 WHERE dept = %s AND indication = %s
-                  AND decision IN ('Approved', 'Rejected')
+                  AND decision IN ('Approved', 'Rejected', 'Pending')
                   AND nct_id IN %s
                 """,
                 (dept, indication, tuple(nct_ids)),
