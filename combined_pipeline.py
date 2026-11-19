@@ -1849,6 +1849,7 @@ def _run_unified(run_start: datetime) -> None:
     for ind in pipeline_keys:
         db.sync_approved_to_tracking(DEPT_NAME, ind)
         tracking_ids = db.load_tracking_list(DEPT_NAME, ind)
+        db.auto_approve_already_tracked(DEPT_NAME, ind, tracking_ids)
         rejected_ids = db.load_rejected_trials(DEPT_NAME, ind)
 
         if ind == "":
@@ -1874,10 +1875,6 @@ def _run_unified(run_start: datetime) -> None:
 
     # ── Step 0 — Baseline sync (all pipelines share organized_trials) ──────
     all_tracked = list({nct for p in pipelines.values() for nct in p["tracking_ids"]})
-
-    print(f"\n[Already Tracked Cleanup] Checking for stale pending entries...")
-    db.auto_approve_already_tracked(DEPT_NAME, all_tracked)
-
     print(f"\n[Step 0] Baseline sync — {len(all_tracked)} unique tracked NCTs across all pipelines...")
     base_organized, newly_inserted_ncts = sync_baseline(all_tracked, drug_compiled)
 
@@ -2099,7 +2096,7 @@ def _run_single(run_start: datetime) -> None:
     nct_ids = db.load_tracking_list(DEPT_NAME, INDICATION)
 
     print("\n[Already Tracked Cleanup] Checking for stale pending entries...")
-    db.auto_approve_already_tracked(DEPT_NAME, nct_ids)
+    db.auto_approve_already_tracked(DEPT_NAME, INDICATION, nct_ids)
 
     print("\n[Step 0] Baseline sync...")
     base_organized, newly_inserted_ncts = sync_baseline(nct_ids, drug_compiled)
