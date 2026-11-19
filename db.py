@@ -171,21 +171,23 @@ def load_departments() -> list[str]:
 
 def load_tracking_list(dept: str, indication: str = "") -> list[str]:
     with _cur() as cur:
-        if dept == "ADC":
-            # ALL ADC pipelines (asset + all indications) use adc_trial_refs as
-            # source of truth. Indication-specific ADC runs must not use tracking_list
-            # because ADC trials are never inserted there — using it caused every
-            # ADC trial to appear as "unmatched" for indication pipelines.
+        if dept == "ADC" and not indication:
+            # ADC asset: adc_trial_refs is the single source of truth for all ADC drug trials
             cur.execute("""
                 SELECT DISTINCT trial_identifier AS nct_id
                 FROM ct.adc_trial_refs
                 WHERE trial_identifier LIKE 'NCT%%'
             """)
+        elif indication:
+            # Indication-specific run (any dept): load only that indication's tracked NCTs.
+            # Each indication has its own independent tracking list — a trial must be
+            # explicitly approved/added for the indication to be considered tracked there.
+            cur.execute(
+                "SELECT DISTINCT nct_id FROM tracking_list WHERE dept = %s AND indication = %s",
+                (dept, indication),
+            )
         else:
-            # LD / ID and future depts: load all tracked NCTs for the dept regardless of
-            # indication. A trial tracked under any indication for the same dept is already
-            # tracked — filtering by indication caused cross-indication duplicates to appear
-            # as new/unmatched on every other indication run.
+            # Non-ADC asset run: load all NCTs for the dept across all indications
             cur.execute(
                 "SELECT DISTINCT nct_id FROM tracking_list WHERE dept = %s",
                 (dept,),
