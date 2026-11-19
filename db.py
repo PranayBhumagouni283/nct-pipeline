@@ -821,6 +821,35 @@ def approve_trial(nct_id: str, dept: str, source: str, indication: str = "", dec
     print(f"  [DB] Approved {nct_id} → tracking list for {dept}/{indication or 'asset'}")
 
 
+def auto_approve_already_tracked(dept: str, tracking_ids: list[str]) -> int:
+    """
+    At pipeline start: bulk-approve any Pending entries in new_candidates_log /
+    unmatched_log whose NCT ID is already in the tracking list.
+    Does NOT touch tracking_list — these NCTs are already there.
+    Returns total rows updated.
+    """
+    if not tracking_ids:
+        return 0
+    today = _date.today().isoformat()
+    total = 0
+    with _cur() as cur:
+        for table in ("new_candidates_log", "unmatched_log"):
+            cur.execute(
+                f"""UPDATE {_qi(table)}
+                       SET decision = 'Approved', decided_at = %s, decided_by = 'already tracked'
+                     WHERE dept = %s
+                       AND nct_id = ANY(%s)
+                       AND decision = 'Pending'""",
+                (today, dept, tracking_ids),
+            )
+            total += cur.rowcount
+    if total:
+        print(f"  [DB] Auto-approved {total} already-tracked entries cleared for {dept}")
+    else:
+        print(f"  [DB] No stale pending entries found for {dept}")
+    return total
+
+
 def reject_trial(nct_id: str, dept: str, source: str, indication: str = ""):
     today = _date.today().isoformat()
     _bulk_upsert(
