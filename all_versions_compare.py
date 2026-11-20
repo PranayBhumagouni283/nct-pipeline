@@ -83,7 +83,7 @@ MODULE_LABEL_MAP: dict[str, tuple[str, str] | None] = {
     "Document Section":           None,
 }
 
-# ── Excel config ───────────────────────────────────────────────────────────────
+# â”€â”€ Excel config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _FIXED_COLS = [
     ("NCT ID",             16),
@@ -107,8 +107,8 @@ _THIN   = Side(style="thin", color="CCCCCC")
 _BORDER = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
 
 
-# ── API ────────────────────────────────────────────────────────────────────────
-# CT.gov added a session cookie gate on api/int — plain HTTP requests return 403.
+# â”€â”€ API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# CT.gov added a session cookie gate on api/int â€” plain HTTP requests return 403.
 # Fix: Playwright visits clinicaltrials.gov/search once to let JS set the required
 # cookies (pinger_sid, ncbi_sid, etc.), then we inject them into a requests.Session.
 # Fallback: if cookies stop working, Playwright navigates directly to the study history
@@ -161,8 +161,8 @@ def _get(url: str) -> requests.Response:
     if resp.status_code != 403:
         return resp
 
-    # Fast-path cookies no longer valid — try Playwright intercept (slow path)
-    print(f"  [cookies] Session cookies rejected (403) — trying Playwright intercept for {url}")
+    # Fast-path cookies no longer valid â€” try Playwright intercept (slow path)
+    print(f"  [cookies] Session cookies rejected (403) â€” trying Playwright intercept for {url}")
     _invalidate_session()
     result: dict = {}
     from playwright.sync_api import sync_playwright
@@ -226,7 +226,7 @@ def get_version_data(nct_id: str, version: int) -> dict:
     return resp.json()
 
 
-# ── Diffing ────────────────────────────────────────────────────────────────────
+# â”€â”€ Diffing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _decode(value: any) -> str:
     if value is None:
@@ -427,7 +427,7 @@ def format_field_changes(changes: list[dict]) -> str:
     return "\n\n".join(sections)
 
 
-# ── Core ───────────────────────────────────────────────────────────────────────
+# â”€â”€ Core â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _blank_row(nct_id: str, note: str, total_versions: int = 0) -> dict:
     return {
@@ -479,16 +479,16 @@ def get_all_comparisons(nct_id: str) -> list[dict]:
                 headers=HEADERS, timeout=10,
             )
             if pub.status_code == 200:
-                # Trial exists and is public — history just isn't available yet (1 version).
-                print(f"  [{nct_id}] History restricted (403) but trial is public — saving SINGLE_VERSION sentinel.")
+                # Trial exists and is public â€” history just isn't available yet (1 version).
+                print(f"  [{nct_id}] History restricted (403) but trial is public â€” saving SINGLE_VERSION sentinel.")
                 row = _blank_row(nct_id, "SINGLE_VERSION", total_versions=1)
                 return [row]
-            # Genuine transient block (trial itself is also inaccessible) — retry next run.
-            print(f"  [{nct_id}] HTTP 403 (transient) — will retry next run.")
+            # Genuine transient block (trial itself is also inaccessible) â€” retry next run.
+            print(f"  [{nct_id}] HTTP 403 (transient) â€” will retry next run.")
             return []
         if code in (429, 503):
-            # Rate-limited or server overload — retry next run.
-            print(f"  [{nct_id}] HTTP {code} (transient) — will retry next run.")
+            # Rate-limited or server overload â€” retry next run.
+            print(f"  [{nct_id}] HTTP {code} (transient) â€” will retry next run.")
             return []
         print(f"  [{nct_id}] HTTP {code}.")
         return [_blank_row(nct_id, f"ERROR: HTTP {code}")]
@@ -510,7 +510,7 @@ def get_all_comparisons(nct_id: str) -> list[dict]:
         return [row]
 
     total = len(changes)
-    print(f"  [{nct_id}] {total} versions — fetching all and comparing {total - 1} pairs...")
+    print(f"  [{nct_id}] {total} versions â€” fetching all and comparing {total - 1} pairs...")
 
     rows: list[dict] = []
 
@@ -563,11 +563,11 @@ def get_all_comparisons(nct_id: str) -> list[dict]:
             print(f"\n  [{nct_id}] ERROR at v{v}: {e}")
             rows.append(_blank_row(nct_id, f"ERROR: {e}", total_versions=total))
 
-    print(f"  [{nct_id}] Done — {len(rows)} version pairs.")
+    print(f"  [{nct_id}] Done â€” {len(rows)} version pairs.")
     return rows
 
 
-# ── Excel writer ───────────────────────────────────────────────────────────────
+# â”€â”€ Excel writer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _save_excel(nct_data: dict[str, list[dict]], path: Path) -> None:
     # Collect all unique (from_version, to_version) pairs across all NCTs
@@ -691,7 +691,7 @@ def _save_excel(nct_data: dict[str, list[dict]], path: Path) -> None:
     wb.save(path)
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def compare_all_versions(
     nct_ids: str | list[str],
@@ -742,7 +742,7 @@ def compare_all_versions(
     return path
 
 
-# ── Utilities ──────────────────────────────────────────────────────────────────
+# â”€â”€ Utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def load_nct_ids_from_excel(path: str, column: str = "Trial Identifier") -> list[str]:
     """Read NCT IDs from a column in an Excel file. Skips blank cells."""
@@ -764,7 +764,7 @@ def load_nct_ids_from_excel(path: str, column: str = "Trial Identifier") -> list
     return nct_ids
 
 
-# ── Run ────────────────────────────────────────────────────────────────────────
+# â”€â”€ Run â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if __name__ == "__main__":
     _input = Path(__file__).parent / "ADC_All_NCTIDs-14May2026.xlsx"
     _out   = str(Path(__file__).parent / "output")
