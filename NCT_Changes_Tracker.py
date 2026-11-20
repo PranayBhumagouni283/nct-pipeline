@@ -70,7 +70,7 @@ CSV_COLUMNS = [
 ]
 
 
-# ── Cookie session (CT.gov api/int requires JS-generated cookies) ──────────────
+# â”€â”€ Cookie session (CT.gov api/int requires JS-generated cookies) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _session: requests.Session | None = None
 _session_lock = Lock()
@@ -108,14 +108,14 @@ def _invalidate_session() -> None:
         _session = None
 
 
-# ── API ────────────────────────────────────────────────────────────────────────
+# â”€â”€ API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _get(url: str) -> requests.Response:
     session = _get_session()
     resp    = session.get(url, timeout=30)
     if resp.status_code != 403:
         return resp
-    print(f"  [cookies] Session cookies rejected (403) — trying Playwright intercept for {url}")
+    print(f"  [cookies] Session cookies rejected (403) â€” trying Playwright intercept for {url}")
     _invalidate_session()
     result: dict = {}
     from playwright.sync_api import sync_playwright
@@ -167,7 +167,7 @@ def get_version_data(nct_id: str, version: int) -> dict:
     return resp.json()
 
 
-# ── Diffing ────────────────────────────────────────────────────────────────────
+# â”€â”€ Diffing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _flatten(obj: any, prefix: str = "") -> dict[str, any]:
     out = {}
@@ -320,7 +320,7 @@ def compare_versions(
     return changes
 
 
-# Modules whose data is too granular to show field-by-field — show a count summary instead
+# Modules whose data is too granular to show field-by-field â€” show a count summary instead
 _RESULTS_MODULES = {
     "Participant Flow", "Baseline Characteristics",
     "Outcome Measures (Results)", "Adverse Events",
@@ -336,7 +336,7 @@ def format_field_changes(changes: list[dict]) -> str:
     for module, items in by_module.items():
         lines = [f"[{module}]"]
 
-        # ── Contacts/Locations: smart added/removed/changed ──
+        # â”€â”€ Contacts/Locations: smart added/removed/changed â”€â”€
         if module == "Contacts/Locations":
             added   = [c for c in items if c["field"] == "__added__"]
             removed = [c for c in items if c["field"] == "__removed__"]
@@ -354,7 +354,7 @@ def format_field_changes(changes: list[dict]) -> str:
                 for c in changed:
                     lines.append(f"    {_humanize_field(c['field'])}: {_fmt(c['oldValue'], c['newValue'])}")
 
-        # ── Results sections: summary count only ──
+        # â”€â”€ Results sections: summary count only â”€â”€
         elif module in _RESULTS_MODULES:
             n_added   = sum(1 for c in items if c["oldValue"] is None)
             n_changed = sum(1 for c in items if c["oldValue"] is not None and c["newValue"] is not None)
@@ -365,7 +365,7 @@ def format_field_changes(changes: list[dict]) -> str:
             if n_removed: parts.append(f"{n_removed} data points removed")
             lines.append(f"  {'; '.join(parts)}")
 
-        # ── Outcome Measures: group by outcome number ──
+        # â”€â”€ Outcome Measures: group by outcome number â”€â”€
         elif module == "Outcome Measures":
             outcome_groups: dict[tuple, list] = defaultdict(list)
             other_items = []
@@ -386,7 +386,7 @@ def format_field_changes(changes: list[dict]) -> str:
             for c in other_items:
                 lines.append(f"  {_humanize_field(c['field'])}: {_fmt(c['oldValue'], c['newValue'])}")
 
-        # ── All other modules: flat sorted list ──
+        # â”€â”€ All other modules: flat sorted list â”€â”€
         else:
             for c in sorted(items, key=lambda c: _natural_sort_key(c["field"])):
                 lines.append(f"  {_humanize_field(c['field'])}: {_fmt(c['oldValue'], c['newValue'])}")
@@ -396,7 +396,7 @@ def format_field_changes(changes: list[dict]) -> str:
     return "\n\n".join(sections)
 
 
-# ── Core ───────────────────────────────────────────────────────────────────────
+# â”€â”€ Core â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _blank_row(nct_id: str, note: str, total_versions: int = 0) -> dict:
     """Skeleton row used whenever a full comparison cannot be produced."""
@@ -418,16 +418,16 @@ def _blank_row(nct_id: str, note: str, total_versions: int = 0) -> dict:
 def get_latest_comparison(nct_id: str) -> dict:
     """
     Fetch the history list, then compare the last two versions.
-    Always returns a dict — never raises. The `note` field explains any issue.
+    Always returns a dict â€” never raises. The `note` field explains any issue.
 
     note values:
-      ""                    — comparison completed normally
-      "NO_HISTORY"          — API returned 0 versions
-      "SINGLE_VERSION"      — only 1 version exists, nothing to compare
-      "NO_CHANGES_IN_LATEST"— latest version has no module changes recorded
-      "NCT_NOT_FOUND"       — HTTP 404 (valid ID format, but NCT does not exist)
-      "INVALID_NCT_ID"      — HTTP 400 (malformed ID, e.g. NCT00000000)
-      "ERROR: <msg>"        — any other failure
+      ""                    â€” comparison completed normally
+      "NO_HISTORY"          â€” API returned 0 versions
+      "SINGLE_VERSION"      â€” only 1 version exists, nothing to compare
+      "NO_CHANGES_IN_LATEST"â€” latest version has no module changes recorded
+      "NCT_NOT_FOUND"       â€” HTTP 404 (valid ID format, but NCT does not exist)
+      "INVALID_NCT_ID"      â€” HTTP 400 (malformed ID, e.g. NCT00000000)
+      "ERROR: <msg>"        â€” any other failure
     """
     try:
         changes = get_history_list(nct_id)
@@ -499,7 +499,7 @@ def get_latest_comparison(nct_id: str) -> dict:
     }
 
 
-# ── Excel writer ───────────────────────────────────────────────────────────────
+# â”€â”€ Excel writer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 # Column config: (header label, column width)
 COLUMN_CONFIG = [
@@ -607,7 +607,7 @@ def _write_redirects_sheet(
     ws.freeze_panes = "A2"
 
     if not redirects:
-        msg_cell = ws.cell(row=2, column=1, value="No redirects detected this run — all input NCT IDs returned their expected canonical IDs.")
+        msg_cell = ws.cell(row=2, column=1, value="No redirects detected this run â€” all input NCT IDs returned their expected canonical IDs.")
         msg_cell.font      = Font(italic=True, color="888888")
         msg_cell.alignment = Alignment(vertical="top")
         return
@@ -634,7 +634,7 @@ def _write_redirects_sheet(
             change_status = "Newly Updated This Run"
             status_fill   = _GREEN
         elif canonical in all_rows:
-            change_status = "Existing — No New Version This Run"
+            change_status = "Existing â€” No New Version This Run"
             status_fill   = _YELLOW
         else:
             change_status = "Not Tracked in Input"
@@ -668,23 +668,23 @@ def _save_excel(
 ) -> None:
     wb = Workbook()
 
-    # Sheet 1 — all NCTs (full snapshot, updated + carried forward)
+    # Sheet 1 â€” all NCTs (full snapshot, updated + carried forward)
     ws_all = wb.active
     ws_all.title = "All NCTs"
     _write_sheet(ws_all, rows)
 
-    # Sheet 2 — only NCTs that got a NEW version detected in this run
+    # Sheet 2 â€” only NCTs that got a NEW version detected in this run
     ws_changed = wb.create_sheet(title="New Updates This Run")
     _write_sheet(ws_changed, newly_compared)
 
-    # Sheet 3 — redirected NCTs (always present; empty message when none detected)
+    # Sheet 3 â€” redirected NCTs (always present; empty message when none detected)
     ws_redir = wb.create_sheet(title="Redirected NCTs")
     _write_redirects_sheet(ws_redir, redirects or [], rows, newly_compared)
 
     wb.save(path)
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def compare_latest_versions(
     nct_ids: str | list[str],
@@ -760,7 +760,7 @@ def compare_latest_versions(
             with open(_detection_cache, encoding="utf-8") as f:
                 precomputed = {k: int(v) for k, v in json.load(f).items()}
             _detection_cache.unlink(missing_ok=True)
-            print(f"Loaded detection cache ({len(precomputed)} NCTs) — skipping duplicate API calls.")
+            print(f"Loaded detection cache ({len(precomputed)} NCTs) â€” skipping duplicate API calls.")
         except Exception as e:
             print(f"Could not load detection cache ({e}), will poll API for all NCTs.")
 
@@ -772,7 +772,7 @@ def compare_latest_versions(
             with open(_redirects_cache, encoding="utf-8") as f:
                 redirects = json.load(f)
             _redirects_cache.unlink(missing_ok=True)
-            print(f"Loaded {len(redirects)} redirect(s) — will add 'Redirected NCTs' sheet.")
+            print(f"Loaded {len(redirects)} redirect(s) â€” will add 'Redirected NCTs' sheet.")
         except Exception as e:
             print(f"Could not load redirects ({e}).")
 
@@ -793,16 +793,16 @@ def compare_latest_versions(
 
         if api_latest is not None and nct_id in prev_curr_version:
             if api_latest == prev_curr_version[nct_id]:
-                # Same version as last run — carry forward, no API calls needed
+                # Same version as last run â€” carry forward, no API calls needed
                 rows.append(prev_rows[nct_id])
                 skipped += 1
-                print(f"[{i}/{total}] {nct_id} — v{api_latest} unchanged, carried forward")
+                print(f"[{i}/{total}] {nct_id} â€” v{api_latest} unchanged, carried forward")
                 if nct_id not in precomputed:
                     time.sleep(0.1)  # only sleep when we actually made an API call
                 continue
 
-        # New version (or first run) — do the full comparison
-        print(f"[{i}/{total}] {nct_id} — new version detected, comparing...")
+        # New version (or first run) â€” do the full comparison
+        print(f"[{i}/{total}] {nct_id} â€” new version detected, comparing...")
         row = get_latest_comparison(nct_id)
         rows.append(row)
         newly_compared.append(row)
@@ -823,7 +823,7 @@ def compare_latest_versions(
     return path
 
 
-# ── Utilities ──────────────────────────────────────────────────────────────────
+# â”€â”€ Utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def load_nct_ids_from_excel(path: str, column: str = "Trial Identifier") -> list[str]:
     """Read NCT IDs from a column in an Excel file. Skips blank cells."""
@@ -845,7 +845,7 @@ def load_nct_ids_from_excel(path: str, column: str = "Trial Identifier") -> list
     return nct_ids
 
 
-# ── Run ────────────────────────────────────────────────────────────────────────
+# â”€â”€ Run â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if __name__ == "__main__":
     _input = Path(__file__).parent / "ADC_All_NCTIDs-14May2026.xlsx"
     _out   = str(Path(__file__).parent / "output")
