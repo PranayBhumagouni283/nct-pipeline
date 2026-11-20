@@ -1,5 +1,5 @@
 """
-concept_extraction.py — Post-pipeline concept extraction for organized_trials.
+concept_extraction.py â€” Post-pipeline concept extraction for organized_trials.
 
 Called from combined_pipeline.py after new/modified trials are upserted.
 Runs regex + LLM (GPT-4o-mini) extraction on a list of NCT IDs and writes
@@ -21,8 +21,8 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-# ── Load extraction helpers from _local_scripts ────────────────────────────────
-_EXT_PATH = Path(__file__).parent / "_local_scripts" / "__extract_clinical_concepts.py"
+# â”€â”€ Load extraction helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+_EXT_PATH = Path(__file__).parent / "extract_clinical_concepts.py"
 _spec = importlib.util.spec_from_file_location("_ext_concepts", _EXT_PATH)
 _ext  = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_ext)
@@ -34,7 +34,7 @@ connect              = _ext.connect
 REGEX_PRIMARY        = _ext.REGEX_PRIMARY
 CONCEPT_TO_DICT_KEYS = _ext.CONCEPT_TO_DICT_KEYS
 
-# ── Column lists ───────────────────────────────────────────────────────────────
+# â”€â”€ Column lists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ALL_CONCEPT_COLS = [
     "line_of_therapy", "biomarkers", "biomarker_status", "prior_therapies",
     "treatment_status", "treatment_setting", "disease_state",
@@ -69,7 +69,7 @@ _ADC_BLOCKLIST: dict[str, set[str]] = {
     "genomic_alteration": {"HBV_DRUG_RESISTANT_VARIANT", "HBV_GENOTYPE_A_H", "HBV_RESISTANCE_MUTATION"},
 }
 
-# Regimen values that are pure dosing schedules with no drug/regimen identity — filter these out.
+# Regimen values that are pure dosing schedules with no drug/regimen identity â€” filter these out.
 # Catches bare frequency/route tokens AND numeric dose strings like "1.8 MG/KG IV Q3W".
 _REGIMEN_DOSING_ONLY_RE = re.compile(
     r"^"
@@ -92,7 +92,7 @@ _REGIMEN_DOSING_ONLY_RE = re.compile(
 )
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _normalise(val: str | None) -> str | None:
     if not val:
@@ -181,7 +181,7 @@ def _push(db_url: str, results: dict[str, dict], verbose: bool) -> None:
         print(f"  [Concept Extraction] Written: {written} trials")
 
 
-# ── Public API ─────────────────────────────────────────────────────────────────
+# â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def run_for_nct_ids(nct_ids: list[str], verbose: bool = True) -> None:
     """
@@ -198,7 +198,7 @@ def run_for_nct_ids(nct_ids: list[str], verbose: bool = True) -> None:
 
     if not prod_url:
         if verbose:
-            print("  [Concept Extraction] DATABASE_URL not set — skipping")
+            print("  [Concept Extraction] DATABASE_URL not set â€” skipping")
         return
 
     # Fall back to key stored in CT.app_credentials if not in environment
@@ -229,7 +229,7 @@ def _run(nct_ids: list[str], prod_url: str, openai_key: str | None, verbose: boo
     dict_rows_flat = [row for rows in dict_grouped.values() for row in rows]
     var_lookup     = _build_variant_lookup(dict_rows_flat)
 
-    # Setup OpenAI client (optional — regex-only mode if key not set)
+    # Setup OpenAI client (optional â€” regex-only mode if key not set)
     client = None
     if openai_key:
         try:
@@ -237,7 +237,7 @@ def _run(nct_ids: list[str], prod_url: str, openai_key: str | None, verbose: boo
             client = OpenAI(api_key=openai_key)
         except ImportError:
             if verbose:
-                print("  [Concept Extraction] openai not installed — LLM skipped, regex only")
+                print("  [Concept Extraction] openai not installed â€” LLM skipped, regex only")
 
     # Fetch trial source text from PROD
     rows = _fetch_rows(prod_url, nct_ids)
