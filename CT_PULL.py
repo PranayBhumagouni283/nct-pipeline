@@ -129,7 +129,7 @@ def save_failed_json(failed_dict):
     if failed_dict:
         with open(FAILED_JSON_FILE, "w", encoding="utf-8") as f:
             json.dump(failed_dict, f, indent=4)
-        print(f"\n⚠️ Saved {len(failed_dict)} failed NCT IDs to {FAILED_JSON_FILE}.")
+        print(f"\nâš ï¸ Saved {len(failed_dict)} failed NCT IDs to {FAILED_JSON_FILE}.")
     elif FAILED_JSON_FILE.exists():
         FAILED_JSON_FILE.unlink()
 
@@ -146,7 +146,7 @@ if __name__ == '__main__':
             with open(FAILED_JSON_FILE, "r", encoding="utf-8") as f:
                 prev_failed = json.load(f)
                 if prev_failed:
-                    print(f"🔄 Found {len(prev_failed)} failed NCT IDs from a previous run. Retrying...")
+                    print(f"ðŸ”„ Found {len(prev_failed)} failed NCT IDs from a previous run. Retrying...")
         except json.JSONDecodeError:
             pass
 
@@ -156,7 +156,7 @@ if __name__ == '__main__':
         input_df = pd.read_excel(INPUT_CSV_PATH)
 
         if 'Trial Identifier' not in input_df.columns:
-            print("❌ Error: Could not find a column named 'Trial Identifier' in the Excel file.")
+            print("âŒ Error: Could not find a column named 'Trial Identifier' in the Excel file.")
             exit()
 
         raw_ids = input_df['Trial Identifier'].dropna().astype(str).tolist()
@@ -169,13 +169,13 @@ if __name__ == '__main__':
         
         nct_ids = sorted(list(set(nct_ids)))
         total = len(nct_ids)
-        print(f"✅ Total Unique NCT IDs found: {total:,}")
+        print(f"âœ… Total Unique NCT IDs found: {total:,}")
 
     except Exception as e:
-        print(f"❌ Error reading the CSV file: {e}")
+        print(f"âŒ Error reading the CSV file: {e}")
         exit()
 
-    print(f"\n🚀 Starting Data Fetch with {MAX_WORKERS} Workers...")
+    print(f"\nðŸš€ Starting Data Fetch with {MAX_WORKERS} Workers...")
     raw_data_rows = []
     failed_ncts_dict = {}  
     completed = 0
@@ -189,17 +189,17 @@ if __name__ == '__main__':
                 nct_id = raw_row.get('NCT ID')
                 
                 if error_msg:
-                    print(f"[{completed}/{total}] ❌ FAILED {nct_id} ({error_msg})")
+                    print(f"[{completed}/{total}] âŒ FAILED {nct_id} ({error_msg})")
                     failed_ncts_dict[nct_id] = error_msg
                 else:
-                    status_icon = "📦" if from_cache else "🌐"
+                    status_icon = "ðŸ“¦" if from_cache else "ðŸŒ"
                     source_text = "Cache" if from_cache else "API"
                     print(f"[{completed}/{total}] {status_icon} Processed {nct_id} (via {source_text})")
                 
                 raw_data_rows.append(raw_row)
                 
     except KeyboardInterrupt:
-        print("\n\n⚠️  INTERRUPTED BY USER — Data fetched so far is safely saved in the cache.")
+        print("\n\nâš ï¸  INTERRUPTED BY USER â€” Data fetched so far is safely saved in the cache.")
         save_failed_json(failed_ncts_dict)
         print("Run the script again to resume exactly where you left off.\n")
 
@@ -208,11 +208,11 @@ if __name__ == '__main__':
 
     # --- SAVE TO CSV ---
     if raw_data_rows:
-        print(f"\n💾 Saving {len(raw_data_rows)} rows to CSV file...")
+        print(f"\nðŸ’¾ Saving {len(raw_data_rows)} rows to CSV file...")
         
         pd.DataFrame(raw_data_rows).to_csv(OUTPUT_CSV_RAW, index=False, encoding='utf-8')
-        print(f"  ✓ Raw JSON data saved to: {OUTPUT_CSV_RAW.name}")
+        print(f"  âœ“ Raw JSON data saved to: {OUTPUT_CSV_RAW.name}")
 
-        print("\n🎉 Success! Process finished.")
+        print("\nðŸŽ‰ Success! Process finished.")
     else:
         print("No data extracted.")
