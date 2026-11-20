@@ -1,4 +1,4 @@
-# Secrets — never commit these
+# Secrets â€” never commit these
 .env
 smtp_config.json
 
@@ -15,7 +15,7 @@ venv/
 .venv/
 env/
 
-# Local data & output — too large and department-specific
+# Local data & output â€” too large and department-specific
 ADC/
 ASMB/
 output/
@@ -24,14 +24,13 @@ output/
 *.csv
 _local_data/
 
-# Local utility scripts — one-time backfill, migrate, check, fix scripts
+# Local utility scripts â€” one-time backfill, migrate, check, fix scripts
 _local_scripts/
 
 # Pipeline state files
 _reparse_done_*.json
 
-# Future / agent / embedding scripts — local only, not part of pipeline run
-change_parser.py
+# Agent / embedding / local-only scripts â€” not part of pipeline run
 chunk_generator_v2.py
 complete_schema.sql
 rebuild_schema.sql
@@ -42,7 +41,6 @@ embedding_worker.py
 embedding_worker_v2.py
 es_retriever.py
 import_tracking_ncts.py
-incremental_processor.py
 master_dashboard.py
 
 # Logs and scratch output files
